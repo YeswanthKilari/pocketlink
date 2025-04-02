@@ -1,3 +1,4 @@
+import Masonry from "react-masonry-css"; // Import react-masonry-css
 import { createContext, useState } from "react";
 import {
   ChevronLast,
@@ -8,18 +9,34 @@ import {
   LogOut,
   Save,
 } from "lucide-react";
-import SidebarItem from "./SidebarItem"; // Ensure SidebarItem exists
-import Dashboard1 from "./Dashboard1"; // Importing Dashboard1
-import Card from "./Card"; // Importing Card component
-import { useContent } from "../../../Hooks/useContent"; // Importing useContent hook
+import { Link } from "react-router-dom";
 
-// ✅ Export SidebarContext
+import SidebarItem from "./SidebarItem";
+import Dashboard1 from "./Dashboard1";
+import Card from "./Card";
+import { useContent } from "../../../Hooks/useContent";
+
 export const SidebarContext = createContext();
 
 export default function DashboardLayout() {
   const [expanded, setExpanded] = useState(true);
   const [showCollections, setShowCollections] = useState(false);
-  const { contents, refreshContent, isLoading, error } = useContent(); // Use useContent hook
+  const { contents, refreshContent, isLoading, error } = useContent();
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryDropdown, setCategoryDropdown] = useState(false);
+
+  const filteredContents = selectedCategory
+    ? contents.filter(
+        (content) => content.type.toLowerCase() === selectedCategory
+      )
+    : contents;
+
+  // Masonry breakpoint configuration
+  const masonryBreakpoints = {
+    default: 3, // Default to 3 columns
+    1100: 2, // 2 columns for screens smaller than 1100px
+    700: 1, // 1 column for screens smaller than 700px
+  };
 
   return (
     <SidebarContext.Provider value={{ expanded }}>
@@ -48,8 +65,42 @@ export default function DashboardLayout() {
             </div>
 
             <ul className="flex-1 px-3 space-y-2">
-              <SidebarItem icon={<Home />} text="Home" />
-              <SidebarItem icon={<LayoutDashboard />} text="Categories" />
+              <SidebarItem icon={<Home />} text="Home" to="/" />
+              <div>
+                <button
+                  onClick={() => setCategoryDropdown(!categoryDropdown)}
+                  className="w-full text-left flex items-center justify-between px-2 py-2 rounded-md hover:bg-gray-700"
+                >
+                  <span className="flex items-center">
+                    <LayoutDashboard className="mr-2" />
+                    <span
+                      className={`overflow-hidden transition-all duration-10 ${
+                        expanded ? "w-auto opacity-100 ml-1" : "w-0 opacity-0"
+                      }`}
+                    >
+                      Categories
+                    </span>
+                  </span>
+                </button>
+                {expanded && categoryDropdown && (
+                  <ul className="bg-gray-700 rounded-md mt-1">
+                    {["youtube", "instagram", "twitter", "facebook"].map(
+                      (category) => (
+                        <li
+                          key={category}
+                          className="px-4 py-2 cursor-pointer hover:bg-gray-600"
+                          onClick={() => {
+                            setSelectedCategory(category);
+                            setCategoryDropdown(false);
+                          }}
+                        >
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                )}
+              </div>
               <SidebarItem icon={<Save />} text="Saved" />
               <SidebarItem icon={<User />} text="Profile" />
               <SidebarItem icon={<LogOut />} text="Logout" />
@@ -69,9 +120,16 @@ export default function DashboardLayout() {
             <div className="flex items-center space-x-6">
               <nav className="flex space-x-6">
                 <a href="#" className="text-gray-200 hover:text-white">
-                  Home
+                  <Link to="/">Home</Link>
                 </a>
-                <a href="#" className="text-gray-200 hover:text-white">
+                <a
+                  href="#"
+                  className="text-gray-200 hover:text-white"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.reload();
+                  }}
+                >
                   Dashboard
                 </a>
                 <a href="#" className="text-gray-200 hover:text-white">
@@ -92,7 +150,7 @@ export default function DashboardLayout() {
           <main className="p-6 bg-gray-950 flex-1">
             <div className="p-4 flex justify-between items-center bg-gray-650">
               <span className="bg-yellow-400 text-black px-3 py-1 rounded-full font-medium">
-                Total Resources Saved: {contents?.length || 0}
+                Total Resources Saved: {filteredContents?.length || 0}
               </span>
 
               <button
@@ -108,29 +166,34 @@ export default function DashboardLayout() {
               style={{ borderTopWidth: "0.1px" }}
             />
 
-            {isLoading ? (
-              <p className="text-white">Loading content...</p>
-            ) : error ? (
-              <p className="text-red-500">Error: {error}</p>
-            ) : contents?.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                {contents.map((content, index) => (
-                  <Card
-                    key={content._id || index}
-                    title={content.title}
-                    link={content.link}
-                    type={content.type}
-                  />
-                ))}
-               
-              </div>
-            ) : (
-              <p className="text-gray-400 text-center mt-4">
-                No resources saved yet. Start by adding a new collection!
-              </p>
-            )}
+            {/* Masonry Layout */}
+            <div className="mt-4">
+              {isLoading ? (
+                <p className="text-white">Loading content...</p>
+              ) : error ? (
+                <p className="text-red-500">Error: {error}</p>
+              ) : filteredContents?.length > 0 ? (
+                <Masonry
+                  breakpointCols={masonryBreakpoints}
+                  className="masonry-grid"
+                  columnClassName="masonry-grid-column"
+                >
+                  {filteredContents.map((content, index) => (
+                    <Card
+                      key={content._id || index}
+                      title={content.title}
+                      link={content.link}
+                      type={content.type}
+                    />
+                  ))}
+                </Masonry>
+              ) : (
+                <p className="text-gray-400 text-center mt-4">
+                  No resources found for {selectedCategory || "all categories"}.
+                </p>
+              )}
+            </div>
 
-            {/* Show Dashboard1 when creating a new collection */}
             {showCollections && (
               <Dashboard1
                 setShowCollections={setShowCollections}
